@@ -47,6 +47,12 @@ export default function CommitteeDashboard() {
               <Link href="/committee/feedback" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 Feedback
               </Link>
+              <Link href="/analytics" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+                Analytics
+              </Link>
+              <Link href="/settings" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+                Settings
+              </Link>
             </nav>
           </aside>
 

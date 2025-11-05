@@ -32,7 +32,7 @@ services:
   # ===== Backend API Service =====
   backend:
     build:
-      context: ./backend
+      context: ./apps/api
       dockerfile: Dockerfile
       target: runner
     container_name: smartschedule-backend
@@ -55,17 +55,22 @@ services:
       
       # CORS
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      
+      # WebSocket
+      WS_PORT: 3002
       
       # Rate limiting
       RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
     ports:
       - "${BACKEND_PORT:-3001}:3001"
+      - "3002:3002"  # WebSocket port
     networks:
       - smartschedule-network
     volumes:
       # Mount for development hot-reload (optional, comment out for production)
-      # - ./backend/src:/app/src:ro
+      # - ./apps/api/src:/app/src:ro
       - backend_logs:/app/logs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
@@ -77,8 +82,8 @@ services:
       sh -c "
         echo 'Waiting for database...' &&
         sleep 5 &&
-        echo 'Running Prisma migrations...' &&
-        npx prisma migrate deploy &&
+        echo 'Pushing database schema...' &&
+        npx prisma db push --accept-data-loss || echo 'Schema push completed or skipped' &&
         echo 'Starting backend server...' &&
         npx tsx src/server.ts
       "

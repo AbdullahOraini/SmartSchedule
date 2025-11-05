@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 import { useAuth } from './AuthProvider'
 import { BackButton } from './BackButton'
 import { LogoutButton } from './LogoutButton'
@@ -31,6 +32,13 @@ export function AppHeader({
           
           {authState.isAuthenticated && (
             <div className="flex items-center space-x-4">
+              <Link 
+                href="/settings" 
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                title="Settings"
+              >
+                Settings
+              </Link>
               <div className="text-sm text-gray-600">
                 {authState.user?.name || 'User'}
               </div>

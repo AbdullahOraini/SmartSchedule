@@ -102,22 +102,27 @@ export default function CommitteeSchedules() {
     try {
       setLoading(true)
       
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      
       // First, ensure time slots are generated
       try {
-        await fetch('/api/timeslots/generate', { method: 'POST' })
+        await fetch(`${API_BASE_URL}/timeslots/generate`, { 
+          method: 'POST',
+          credentials: 'include'
+        })
       } catch (error) {
         console.log('Time slots may already exist, continuing...')
       }
       
       // Load all data in parallel
       const [sectionsRes, coursesRes, instructorsRes, roomsRes, timeSlotsRes, studentsRes, schedulesRes] = await Promise.all([
-        fetch('/api/sections'),
-        fetch('/api/courses'),
-        fetch('/api/users'),
-        fetch('/api/rooms'),
-        fetch('/api/timeslots'),
-        fetch('/api/students'),
-        fetch('/api/schedules')
+        fetch(`${API_BASE_URL}/sections`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/courses`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/users/instructors`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/rooms`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/timeslots`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/students`, { credentials: 'include' }),
+        fetch(`${API_BASE_URL}/schedules`, { credentials: 'include' })
       ])
 
       // Check each response
@@ -213,7 +218,9 @@ export default function CommitteeSchedules() {
       console.log('📝 Selected time slots:', newSection.selectedTimeSlots)
       console.log('📝 Built meetings:', meetings)
 
-      const response = await fetch('/api/sections', {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/sections`, {
+        credentials: 'include',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -446,7 +453,9 @@ export default function CommitteeSchedules() {
 
     try {
       console.log('🗑️ Sending DELETE request to:', `/api/sections/${id}`)
-      const response = await fetch(`/api/sections/${id}`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/sections/${id}`, {
+        credentials: 'include',
         method: 'DELETE',
       })
 
@@ -480,7 +489,10 @@ export default function CommitteeSchedules() {
     }
 
     try {
-      const response = await fetch(`/api/students/search?universityId=${enrollmentData.universityId}`)
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/students/search?universityId=${enrollmentData.universityId}`, {
+        credentials: 'include'
+      })
       const result = await response.json()
 
       if (result.success) {
@@ -524,12 +536,17 @@ export default function CommitteeSchedules() {
     }
 
     try {
-      const response = await fetch(`/api/sections/${selectedSection.id}/enroll`, {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/sections/${selectedSection.id}/enroll`, {
+        credentials: 'include',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(enrollmentData)
+        body: JSON.stringify({
+          universityId: enrollmentData.universityId,
+          studentId: searchResult?.[0]?.id
+        })
       })
 
       const result = await response.json()
@@ -559,7 +576,9 @@ export default function CommitteeSchedules() {
     
     if (confirmed) {
       try {
-        const response = await fetch(`/api/sections/${sectionId}/unenroll?studentId=${studentId}`, {
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const response = await fetch(`${API_BASE_URL}/sections/${sectionId}/unenroll?studentId=${studentId}`, {
+          credentials: 'include',
           method: 'DELETE'
         })
         const result = await response.json()

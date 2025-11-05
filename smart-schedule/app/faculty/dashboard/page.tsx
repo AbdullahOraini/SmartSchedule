@@ -90,6 +90,9 @@ export default function FacultyDashboard() {
               <Link href="/faculty/assignments" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
                 My Assignments
               </Link>
+              <Link href="/settings" className="block w-full text-left px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
+                Settings
+              </Link>
             </nav>
           </aside>
 

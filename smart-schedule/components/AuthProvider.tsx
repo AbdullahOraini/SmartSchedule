@@ -5,6 +5,7 @@ import { AuthService, AuthState, User } from '../lib/auth'
 interface AuthContextType {
   authState: AuthState
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  register: (email: string, password: string, name: string, role: 'student' | 'faculty' | 'committee', universityId?: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isAuthenticated: () => boolean
   getCurrentUser: () => User | null
@@ -46,6 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return authService.login(email, password)
   }
 
+  const register = async (email: string, password: string, name: string, role: 'student' | 'faculty' | 'committee', universityId?: string) => {
+    const authService = AuthService.getInstance()
+    return authService.register(email, password, name, role, universityId)
+  }
+
   const logout = () => {
     const authService = AuthService.getInstance()
     authService.logout()
@@ -70,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={{
       authState,
       login,
+      register,
       logout,
       isAuthenticated,
       getCurrentUser,

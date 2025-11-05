@@ -43,6 +43,85 @@ export class AuthService {
     this.listeners.forEach(listener => listener(this.authState))
   }
 
+  // Register new user
+  async register(email: string, password: string, name: string, role: 'student' | 'faculty' | 'committee', universityId?: string): Promise<{ success: boolean; error?: string }> {
+    console.log('📝 AuthService.register called with:', { email, name, role, universityId })
+    this.authState.isLoading = true
+    this.notifyListeners()
+
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+          role: role.toUpperCase(),
+          universityId
+        }),
+        credentials: 'include',
+      })
+
+      const data = await response.json()
+      console.log('📝 Backend registration response:', data)
+
+      if (!response.ok) {
+        const errorMessage = data.message || data.error || 'Registration failed'
+        this.authState.isLoading = false
+        this.notifyListeners()
+        return {
+          success: false,
+          error: errorMessage
+        }
+      }
+
+      if (!data.success || !data.user) {
+        const errorMessage = data.message || data.error || 'Invalid response from server'
+        this.authState.isLoading = false
+        this.notifyListeners()
+        return {
+          success: false,
+          error: errorMessage
+        }
+      }
+
+      // Map backend user to frontend user format
+      const user: User = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        universityId: data.user.universityId,
+        role: data.user.role.toLowerCase() as User['role'],
+      }
+
+      this.authState = {
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+      }
+
+      // Store in localStorage
+      localStorage.setItem('smartSchedule_user', JSON.stringify(user))
+      localStorage.setItem('smartSchedule_auth', 'true')
+
+      this.notifyListeners()
+
+      return { success: true }
+    } catch (error) {
+      console.error('📝 Registration error:', error)
+      this.authState.isLoading = false
+      this.notifyListeners()
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Registration failed'
+      }
+    }
+  }
+
   // Login with email and password only (role determined by backend)
   async login(email: string, password: string): Promise<{ success: boolean; error?: string }> {
     console.log('🔐 AuthService.login called with:', { email, password })
@@ -52,16 +131,51 @@ export class AuthService {
     try {
       // Call the actual backend API
       console.log('🔐 Calling backend API...')
-      const response = await fetch('http://localhost:3002/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include', // Include cookies for JWT tokens
-      })
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const loginUrl = `${API_BASE_URL}/auth/login`
+      console.log('🔐 API URL:', loginUrl)
+      
+      let response: Response
+      try {
+        response = await fetch(loginUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+          credentials: 'include', // Include cookies for JWT tokens
+        })
+      } catch (fetchError: any) {
+        // Network error - backend might not be running
+        console.error('🔐 Fetch error:', fetchError)
+        const errorMessage = fetchError.message || 'Failed to connect to server'
+        
+        // Provide helpful error message
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          return {
+            success: false,
+            error: 'Cannot connect to backend API server. Please make sure the backend API is running on port 3001 (not the database). The database runs on port 5432.'
+          }
+        }
+        
+        return {
+          success: false,
+          error: `Connection error: ${errorMessage}. Please check if the backend server is running.`
+        }
+      }
 
-      const data = await response.json()
+      // Check if response is ok before trying to parse JSON
+      let data: any
+      try {
+        data = await response.json()
+      } catch (jsonError) {
+        // Response might not be JSON (e.g., HTML error page)
+        console.error('🔐 JSON parse error:', jsonError)
+        return {
+          success: false,
+          error: `Server returned invalid response. Status: ${response.status}. Please check if the backend is running correctly.`
+        }
+      }
       console.log('🔐 Backend response:', data)
 
       if (!response.ok) {
