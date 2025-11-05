@@ -92,15 +92,21 @@ export default function FacultyAssignments() {
       setLoading(true)
       console.log(`[${loadRequestId}] 🔄 Loading assignments for faculty ID:`, facultyId)
       
-      const timestamp = Date.now()
-      const apiUrl = `/api/faculty/assignments?facultyId=${facultyId}&t=${timestamp}`
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const apiUrl = `${API_BASE_URL}/faculty/assignments`
       console.log(`[${loadRequestId}] 🔄 API URL:`, apiUrl)
       
       // Add timeout to prevent infinite loading
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
       
-      const response = await fetch(apiUrl, { signal: controller.signal })
+      const response = await fetch(apiUrl, {
+        signal: controller.signal,
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
       clearTimeout(timeoutId)
       
       console.log(`[${loadRequestId}] 🔄 Response status:`, response.status)
@@ -112,9 +118,54 @@ export default function FacultyAssignments() {
       const result = await response.json()
       console.log(`[${loadRequestId}] 📋 Faculty assignments response:`, result)
       
-      if (result.success) {
-        setAssignments(result.data)
-        console.log(`[${loadRequestId}] ✅ Loaded assignments:`, result.data.length, 'assignments')
+      if (result.success && result.data) {
+        // Transform backend response to frontend format
+        // Backend returns flat array of assignments, frontend expects grouped by section
+        const assignmentsBySection = new Map<string, Assignment>()
+        
+        result.data.forEach((assignment: any) => {
+          const sectionId = assignment.section?.id || 'unknown'
+          const section = assignment.section
+          
+          if (!assignmentsBySection.has(sectionId)) {
+            // Format time from meetings
+            let timeStr = 'TBD'
+            if (section.meetings && section.meetings.length > 0) {
+              const meeting = section.meetings[0]
+              timeStr = `${meeting.dayOfWeek} ${meeting.startTime} - ${meeting.endTime}`
+            }
+            
+            assignmentsBySection.set(sectionId, {
+              id: sectionId,
+              course: {
+                code: section.course?.code || 'Unknown',
+                name: section.course?.name || 'Unknown Course',
+              },
+              section: section.name || 'Unknown Section',
+              time: timeStr,
+              room: section.room?.name || 'TBD',
+              students: 0,
+              assignments: [],
+            })
+          }
+          
+          const sectionData = assignmentsBySection.get(sectionId)!
+          if (assignment.student) {
+            sectionData.assignments.push({
+              id: assignment.id,
+              student: {
+                id: assignment.student.id,
+                name: assignment.student.name,
+                email: assignment.student.email,
+              },
+            })
+            sectionData.students = sectionData.assignments.length
+          }
+        })
+        
+        const formattedAssignments = Array.from(assignmentsBySection.values())
+        setAssignments(formattedAssignments)
+        console.log(`[${loadRequestId}] ✅ Loaded assignments:`, formattedAssignments.length, 'sections')
       } else {
         console.error(`[${loadRequestId}] ❌ Error loading assignments:`, result.error)
         setAssignments([]) // Clear assignments on error

@@ -36,10 +36,16 @@ export function LogoutButton({
     }
   }
 
+  // Determine if className includes w-full (for dropdown menu usage)
+  const isFullWidth = className.includes('w-full')
+  const baseClasses = isFullWidth 
+    ? 'flex items-center gap-2 text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+    : 'inline-flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-md px-3 py-2'
+
   return (
     <button
       onClick={handleLogout}
-      className={`inline-flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-md px-3 py-2 ${className}`}
+      className={`${baseClasses} ${className}`}
       title="Log out"
       aria-label="Log out of your account"
     >

@@ -166,15 +166,91 @@ export async function verifyRegistrationResponseFunction(
 
   const verification = await verifyRegistrationResponseLib(opts)
 
-  if (!verification.verified || !verification.registrationInfo) {
-    throw new Error('Registration verification failed')
+  // Log verification result for debugging
+  console.log('🔐 Verification result:', {
+    verified: verification.verified,
+    hasRegistrationInfo: !!verification.registrationInfo,
+    registrationInfoKeys: verification.registrationInfo ? Object.keys(verification.registrationInfo) : null,
+    registrationInfoType: typeof verification.registrationInfo,
+    registrationInfo: verification.registrationInfo ? {
+      hasCredentialID: !!verification.registrationInfo.credentialID,
+      credentialIDType: typeof verification.registrationInfo.credentialID,
+      credentialIDValue: verification.registrationInfo.credentialID ? 
+        (Buffer.isBuffer(verification.registrationInfo.credentialID) ? 
+          `Buffer(${verification.registrationInfo.credentialID.length} bytes)` :
+          verification.registrationInfo.credentialID instanceof Uint8Array ?
+          `Uint8Array(${verification.registrationInfo.credentialID.length} bytes)` :
+          String(verification.registrationInfo.credentialID).substring(0, 50)) : 'undefined',
+      hasCredentialPublicKey: !!verification.registrationInfo.credentialPublicKey,
+      credentialPublicKeyType: typeof verification.registrationInfo.credentialPublicKey,
+      counter: verification.registrationInfo.counter,
+    } : null,
+  })
+
+  if (!verification.verified) {
+    throw new Error('Registration verification failed: verification not verified')
+  }
+
+  if (!verification.registrationInfo) {
+    throw new Error('Registration verification failed: missing registrationInfo')
+  }
+
+  // Validate registration info
+  if (!verification.registrationInfo.credentialID) {
+    console.error('❌ Missing credentialID in registrationInfo:', {
+      registrationInfo: verification.registrationInfo,
+      allKeys: Object.keys(verification.registrationInfo || {}),
+    })
+    throw new Error('Registration verification failed: missing credential ID')
+  }
+
+  if (!verification.registrationInfo.credentialPublicKey) {
+    console.error('❌ Missing credentialPublicKey in registrationInfo')
+    throw new Error('Registration verification failed: missing public key')
+  }
+
+  // Convert credentialID to Buffer if needed
+  // Try to get credentialID from registrationInfo first, fallback to extracting from response
+  let credentialIDValue: Buffer | Uint8Array | string | undefined = verification.registrationInfo.credentialID
+  
+  // If credentialID is missing, try to extract it from the response object if available
+  if (!credentialIDValue && response && response.id) {
+    console.log('⚠️ credentialID missing from registrationInfo, using response.id')
+    credentialIDValue = response.id
+  }
+
+  if (!credentialIDValue) {
+    throw new Error('Registration verification failed: unable to extract credential ID')
+  }
+
+  let credentialIDBuffer: Buffer
+  if (Buffer.isBuffer(credentialIDValue)) {
+    credentialIDBuffer = credentialIDValue
+  } else if (credentialIDValue instanceof Uint8Array) {
+    credentialIDBuffer = Buffer.from(credentialIDValue)
+  } else if (typeof credentialIDValue === 'string') {
+    credentialIDBuffer = base64URLStringToBuffer(credentialIDValue)
+  } else {
+    throw new Error(`Invalid credential ID type: ${typeof credentialIDValue}. Expected Buffer, Uint8Array, or string.`)
+  }
+
+  // Convert public key to Buffer if needed
+  let publicKeyBuffer: Buffer
+  if (Buffer.isBuffer(verification.registrationInfo.credentialPublicKey)) {
+    publicKeyBuffer = verification.registrationInfo.credentialPublicKey
+  } else if (verification.registrationInfo.credentialPublicKey instanceof Uint8Array) {
+    publicKeyBuffer = Buffer.from(verification.registrationInfo.credentialPublicKey)
+  } else if (typeof verification.registrationInfo.credentialPublicKey === 'string') {
+    publicKeyBuffer = base64URLStringToBuffer(verification.registrationInfo.credentialPublicKey)
+  } else {
+    throw new Error(`Invalid public key type: ${typeof verification.registrationInfo.credentialPublicKey}. Expected Buffer, Uint8Array, or string.`)
   }
 
   return {
     verified: true,
-    credentialID: bufferToBase64URLString(Buffer.from(verification.registrationInfo.credentialID)),
-    publicKey: bufferToBase64URLString(Buffer.from(verification.registrationInfo.credentialPublicKey)),
-    counter: verification.registrationInfo.counter,
+    credentialID: bufferToBase64URLString(credentialIDBuffer),
+    publicKey: bufferToBase64URLString(publicKeyBuffer),
+    counter: verification.registrationInfo.counter || 0,
   }
 }
 

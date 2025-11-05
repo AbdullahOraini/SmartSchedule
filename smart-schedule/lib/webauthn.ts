@@ -39,12 +39,36 @@ export async function registerFingerprint(deviceName?: string): Promise<{ succes
     }
 
     // Validate credential before sending
-    if (!credential || !credential.id) {
+    if (!credential || typeof credential !== 'object') {
       return { success: false, error: 'Failed to get credential from device. Please try again.' }
     }
 
-    if (!credential.response || !credential.response.clientDataJSON || !credential.response.attestationObject) {
-      return { success: false, error: 'Invalid credential data received. Please try again.' }
+    if (!credential.id || (typeof credential.id !== 'string' && !(credential.id instanceof ArrayBuffer))) {
+      console.error('Invalid credential ID:', credential.id, typeof credential.id)
+      return { success: false, error: 'Invalid credential ID format. Please try again.' }
+    }
+
+    if (!credential.response || typeof credential.response !== 'object') {
+      return { success: false, error: 'Invalid credential response data. Please try again.' }
+    }
+
+    if (!credential.response.clientDataJSON) {
+      console.error('Missing clientDataJSON:', credential.response)
+      return { success: false, error: 'Missing credential data. Please try again.' }
+    }
+
+    if (!credential.response.attestationObject) {
+      console.error('Missing attestationObject:', credential.response)
+      return { success: false, error: 'Missing credential attestation. Please try again.' }
+    }
+
+    // Ensure credential.id is a string (should be base64url from @simplewebauthn/browser)
+    // If it's an ArrayBuffer, convert it (though this shouldn't happen with @simplewebauthn/browser)
+    if (credential.id instanceof ArrayBuffer) {
+      console.warn('Credential ID is ArrayBuffer, converting to base64url')
+      const uint8Array = new Uint8Array(credential.id)
+      const base64 = btoa(String.fromCharCode(...uint8Array))
+      credential.id = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
     }
 
     // Step 3: Send credential to server for verification

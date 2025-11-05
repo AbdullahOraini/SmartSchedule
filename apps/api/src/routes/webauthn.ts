@@ -121,14 +121,38 @@ router.post('/register/finish', authenticateToken, async (req: AuthRequest, res:
       throw new CustomError('Invalid challenge. Please try registering again.', 400)
     }
 
-    // Verify registration
-    const verification = await verifyRegistration(
-      userId,
-      credential,
-      storedChallenge.challenge
-    )
+    // Log credential structure for debugging
+    console.log('🔐 Register finish - Credential structure:', {
+      hasCredential: !!credential,
+      credentialId: credential?.id,
+      credentialIdType: typeof credential?.id,
+      hasResponse: !!credential?.response,
+      hasClientDataJSON: !!credential?.response?.clientDataJSON,
+      hasAttestationObject: !!credential?.response?.attestationObject,
+      responseKeys: credential?.response ? Object.keys(credential.response) : null,
+    })
 
-    if (!verification.verified) {
+    // Verify registration
+    let verification
+    try {
+      verification = await verifyRegistration(
+        userId,
+        credential,
+        storedChallenge.challenge
+      )
+    } catch (error: any) {
+      console.error('❌ Registration verification error:', error)
+      // Provide more helpful error messages
+      if (error.message && error.message.includes('undefined')) {
+        throw new CustomError('Invalid credential data received. Please try registering your fingerprint again.', 400)
+      }
+      if (error.message && error.message.includes('Buffer')) {
+        throw new CustomError('Invalid credential format. Please try registering your fingerprint again.', 400)
+      }
+      throw new CustomError(error.message || 'Registration verification failed', 400)
+    }
+
+    if (!verification || !verification.verified) {
       throw new CustomError('Registration verification failed', 400)
     }
 
